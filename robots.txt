@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://safera.vercel.app/sitemap.xml

@@ -1,0 +1,19 @@
+{
+  "name": "صافرة",
+  "short_name": "صافرة",
+  "description": "نتائج مباشرة وتوقعات الذكاء الاصطناعي لكأس العالم 2026",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3ead9",
+  "theme_color": "#2b2520",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "shortcuts": [
+    { "name": "المباريات", "url": "/#matches", "description": "نتائج مباريات اليوم" },
+    { "name": "التوقعات", "url": "/#predictions", "description": "توقعات الذكاء الاصطناعي" }
+  ]
+}
