@@ -863,5 +863,153 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<!-- ======= ربط API الحقيقي ======= -->
+<script>
+// ===== إعدادات =====
+const REFRESH_INTERVAL = 60000; // تحديث كل 60 ثانية
+const WC_LEAGUE_ID = '1';       // ID كأس العالم — عدّله إذا اختلف
+
+// ===== جلب المباريات المباشرة =====
+async function fetchLiveMatches() {
+  try {
+    const res = await fetch('/api/matches');
+    if (!res.ok) throw new Error('network');
+    const data = await res.json();
+    renderMatches(data);
+  } catch {
+    // إذا فشل الـ API نبقي البيانات الثابتة كما هي
+    console.warn('تعذّر جلب المباريات المباشرة');
+  }
+}
+
+// ===== جلب الترتيب =====
+async function fetchStandings() {
+  try {
+    const res = await fetch(`/api/standings?league_id=${WC_LEAGUE_ID}`);
+    if (!res.ok) throw new Error('network');
+    const data = await res.json();
+    renderStandings(data);
+  } catch {
+    console.warn('تعذّر جلب الترتيب');
+  }
+}
+
+// ===== جلب مباريات اليوم =====
+async function fetchFixtures() {
+  try {
+    const res = await fetch(`/api/fixtures?league_id=${WC_LEAGUE_ID}`);
+    if (!res.ok) throw new Error('network');
+    const data = await res.json();
+    renderFixtures(data);
+  } catch {
+    console.warn('تعذّر جلب مباريات اليوم');
+  }
+}
+
+// ===== عرض المباريات المباشرة =====
+function renderMatches(data) {
+  const matches = data?.response || data?.matches || data?.data || [];
+  if (!matches.length) return;
+
+  const ledger = document.querySelector('.ledger');
+  if (!ledger) return;
+
+  ledger.innerHTML = matches.slice(0, 6).map(m => {
+    const home = m.home?.name || m.homeTeam?.name || 'الفريق الأول';
+    const away = m.away?.name || m.awayTeam?.name || 'الفريق الثاني';
+    const homeScore = m.home?.score ?? m.homeScore ?? '—';
+    const awayScore = m.away?.score ?? m.awayScore ?? '—';
+    const status = m.status?.type || m.status || '';
+    const minute = m.time?.played || m.minute || '';
+
+    const isLive = status === 'inprogress' || status === 'live' || status === 'LIVE';
+    const isFT   = status === 'finished'   || status === 'FT'   || status === 'FINISHED';
+
+    const pillClass = isLive ? 'live' : isFT ? 'ft' : 'next';
+    const pillText  = isLive ? `مباشر ${minute}'` : isFT ? 'انتهت' : m.startTime || '—:—';
+    const scoreDisplay = isFT || isLive
+      ? `${homeScore} — ${awayScore}`
+      : `<span style="font-size:0.95rem;color:var(--ink-soft)">لم تبدأ</span>`;
+
+    return `
+      <div class="ledger-row" role="listitem">
+        <span class="ledger-status ${pillClass}">${pillText}</span>
+        <div class="ledger-team home">${home}</div>
+        <div class="ledger-score">${scoreDisplay}</div>
+        <div class="ledger-team away">${away}</div>
+        <div class="ledger-time">${isLive ? `د. ${minute}` : ''}</div>
+      </div>`;
+  }).join('');
+}
+
+// ===== عرض مباريات اليوم =====
+function renderFixtures(data) {
+  const fixtures = data?.response || data?.matches || data?.data || [];
+  if (!fixtures.length) return;
+  // نستخدم نفس renderMatches لأن الهيكل مشابه
+  renderMatches({ response: fixtures });
+}
+
+// ===== عرض الترتيب =====
+function renderStandings(data) {
+  const rows = data?.response?.[0]?.league?.standings?.[0]
+            || data?.standings
+            || data?.data
+            || [];
+  if (!rows.length) return;
+
+  const tbody = document.querySelector('.standings-table tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = rows.slice(0, 6).map((t, i) => {
+    const name     = t.team?.name || t.name || '—';
+    const played   = t.all?.played  ?? t.played  ?? 0;
+    const won      = t.all?.win     ?? t.won      ?? 0;
+    const drawn    = t.all?.draw    ?? t.drawn    ?? 0;
+    const lost     = t.all?.lose    ?? t.lost     ?? 0;
+    const gf       = t.all?.goals?.for     ?? t.goalsFor     ?? 0;
+    const ga       = t.all?.goals?.against ?? t.goalsAgainst ?? 0;
+    const pts      = t.points ?? 0;
+    const qualified = i < 2;
+    const eliminated = pts === 0 && played === 3;
+
+    return `
+      <tr class="${qualified ? 'qualifies' : eliminated ? 'eliminated' : ''}">
+        <td>${i + 1}</td>
+        <td>${name}</td>
+        <td>${played}</td><td>${won}</td><td>${drawn}</td><td>${lost}</td>
+        <td>${gf}—${ga}</td>
+        <td class="pts-col">${pts}</td>
+      </tr>`;
+  }).join('');
+}
+
+// ===== مؤشر تحميل =====
+function showLoading() {
+  const ledger = document.querySelector('.ledger');
+  if (ledger) ledger.innerHTML = `
+    <div style="padding:30px;text-align:center;color:var(--ink-soft);font-family:'Courier Prime',monospace">
+      ⏳ جاري تحميل البيانات...
+    </div>`;
+}
+
+// ===== تشغيل عند فتح الصفحة =====
+document.addEventListener('DOMContentLoaded', () => {
+  showLoading();
+  fetchLiveMatches();
+  fetchFixtures();
+  fetchStandings();
+
+  // تحديث تلقائي كل 60 ثانية
+  setInterval(() => {
+    fetchLiveMatches();
+    fetchFixtures();
+  }, REFRESH_INTERVAL);
+
+  // الترتيب يتحدث كل 5 دقائق
+  setInterval(fetchStandings, REFRESH_INTERVAL * 5);
+});
+</script>
+
 </body>
 </html>
