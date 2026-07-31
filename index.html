@@ -455,15 +455,19 @@ async function generateAI(matches){
   if(!upcoming.length){container.innerHTML='<div style="padding:20px;color:var(--ink-soft)">كل مباريات اليوم بدأت أو انتهت.</div>';return}
   container.innerHTML='<div style="padding:20px;text-align:center;color:var(--ink-soft);font-family:Courier Prime,monospace">جاري تحليل المباريات بالذكاء الاصطناعي...</div>';
   try{
-    const list=upcoming.map(m=>m.teams?.home?.name+' ضد '+m.teams?.away?.name).join('، ');
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,messages:[{role:'user',content:'أنت محلل رياضي. حلل هذه المباريات بالعربية وأعط لكل مباراة: الفائز المتوقع، النسبة، والسبب في جملة. المباريات: '+list+'. أجب بـ JSON فقط: [{"match":"الفريق1 ضد الفريق2","win":"الفريق","pct":60,"reason":"السبب"}]'}]})});
+    const resp=await fetch('/api/ai',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        matches:upcoming.map(m=>({home:m.teams?.home?.name||'?',away:m.teams?.away?.name||'?'}))
+      })
+    });
     const data=await resp.json();
-    const clean=(data.content?.[0]?.text||'[]').replace(/```json|```/g,'').trim();
-    const analyses=JSON.parse(clean);
+    const analyses=data.analyses||[];
+    if(!analyses.length)throw new Error('empty');
     container.innerHTML=analyses.map(a=>'<div class="ai-card"><div class="ai-card-head"><span>'+a.match+'</span><span class="ai-badge"><svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/><path d="M4 6 L5.5 7.5 L8.5 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>AI</span></div><p class="ai-text">الفائز المتوقع: <strong>'+a.win+'</strong> — '+a.reason+'</p><div class="ai-meter"><div class="ai-meter-fill" style="width:'+a.pct+'%"></div></div><div style="text-align:left;font-size:.75rem;color:var(--ink-soft);margin-top:4px;font-family:Courier Prime,monospace">'+a.pct+'% احتمالية</div></div>').join('');
   }catch(e){container.innerHTML='<div style="padding:20px;color:var(--ink-soft)">تعذّر الاتصال بالذكاء الاصطناعي حالياً.</div>'}
 }
-
 async function loadMatches(){
   try{
     const [lr,fr]=await Promise.all([fetch('/api/matches'),fetch('/api/fixtures')]);
